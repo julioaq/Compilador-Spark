@@ -1367,8 +1367,16 @@ public class sintactico {
             }
             if(operador.equals("print"))
             {
-                cadena_asm += "\t\tWRITE " + pila_aux_operandos.firstElement() + "\n\t\tWRITELN\n";
-                pila_aux_operandos.remove(pila_aux_operandos.firstElement());
+                if(obtener_tipo_variable(pila_aux_operandos.firstElement()) == 101)
+                {
+                    cadena_asm += "\t\tWRITENUM " + pila_aux_operandos.firstElement() + "\n\t\tWRITELN\n";
+                    pila_aux_operandos.remove(pila_aux_operandos.firstElement());
+                }
+                else if(obtener_tipo_variable(pila_aux_operandos.firstElement()) == 120)
+                {
+                    cadena_asm += "\t\tWRITE " + pila_aux_operandos.firstElement() + "\n\t\tWRITELN\n";
+                    pila_aux_operandos.remove(pila_aux_operandos.firstElement());
+                }
             }
         }
         cadena_asm += "\t\tret \nCOMPI ENDP \nEND BEGIN";
