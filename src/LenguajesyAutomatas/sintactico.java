@@ -1220,13 +1220,14 @@ public class sintactico {
     {
         Stack <String> pila_aux_operandos = new Stack <>();
         Stack <String> pila_aux_operadores = new Stack <>();
-        
         String CadenaVar="";
         String CadenaEnsamblador;
         String Operando2;
+        String Operando1;
         String cadena_asm="";
         int Tempcont = 0;
         int Tempcont2 = 0;
+        String tmp="";
         
         CadenaVar += "INCLUDE Macros.MAC\n" +
                            "DOSSEG\n" +
@@ -1259,7 +1260,7 @@ public class sintactico {
         cadena_asm += "\t\tTempINT dw ?\n" +
                            "\t\tTempCOMPARACION dw ?\n";
 
-            cadena_asm += ".CODE\n" +
+        cadena_asm += ".CODE\n" +
                            ".386\n" +
                            "BEGIN:\n" +
                            "\t\tMOV AX, @DATA\n" +
@@ -1271,24 +1272,24 @@ public class sintactico {
             
         for(String polish: lista_polish_buffer)
         {
-        //lista_polish_buffer.forEach((polish) -> {
             if(polish.equals("+") || polish.equals("-") || polish.equals("*") || polish.equals(":=") || polish.equals("print"))
             {
                 pila_aux_operadores.add(polish);
             }
             else
             {
-                pila_aux_operandos.add(polish);
                 boolean variable_declarada = lista_variables.stream().anyMatch(var -> var.nombre_var.equals(polish));
                 if(!variable_declarada)  
                 {
                     if(isInteger(polish))
                     {
                         lista_variables.add(new nodo_variable(polish, 101));
+                        pila_aux_operandos.add(polish);
                     }
                     else if(isDouble(polish))
                     {
                         lista_variables.add(new nodo_variable(polish, 102));
+                        pila_aux_operandos.add(polish);
                     }
                     else
                     {
@@ -1297,76 +1298,77 @@ public class sintactico {
                         Tempcont++;
                     }
                 }
+                else pila_aux_operandos.add(polish);  
             }
         }
-        //}); 
-
         
         System.out.println("");
-        for(int i = pila_aux_operandos.size()-1; i >= 0 ; i--)
+        for(int i = pila_aux_operandos.size()-1; i >= 0; i--)
         {
             System.out.println(pila_aux_operandos.get(i));
         }
-        System.out.println("");
-        for(int i = pila_aux_operadores.size()-1; i >= 0 ; i--)
-        {
-            System.out.println(pila_aux_operadores.get(i));
-        }
-        System.out.println("");
         
-        for (String operador : pila_aux_operadores) 
+        for(String operador : pila_aux_operadores)
         {
             if(operador.equals("+"))
             {
-                Operando2 = pila_aux_operandos.pop();
-                cadena_asm += "\t\tSUMAR " + pila_aux_operandos.pop() + ", " + Operando2 + ", TempINT\n";
-                pila_aux_operandos.push("TempINT");
-                lista_variables.add(new nodo_variable("TempINT", 101));
+                Operando1 = pila_aux_operandos.get(1);
+                Operando2 = pila_aux_operandos.get(2);
+                cadena_asm += "\t\tSUMAR " + Operando1 + ", " + Operando2 + ", TempINT\n";
+                pila_aux_operandos.remove(Operando1);
+                pila_aux_operandos.remove(Operando2);
+                pila_aux_operandos.add(1,"TempINT");
             }
+            if(operador.equals("-"))
+            {
+                Operando1 = pila_aux_operandos.get(1);
+                Operando2 = pila_aux_operandos.get(2);
+                cadena_asm += "\t\tRESTAR " + Operando1 + ", " + Operando2 + ", TempINT\n";
+                pila_aux_operandos.remove(Operando1);
+                pila_aux_operandos.remove(Operando2);
+                pila_aux_operandos.add(1,"TempINT");
+            }
+            if(operador.equals("*"))
+            {
+                Operando1 = pila_aux_operandos.get(1);
+                Operando2 = pila_aux_operandos.get(2);
+                cadena_asm += "\t\tMULTI " + Operando1 + ", " + Operando2 + ", TempINT\n";
+                pila_aux_operandos.remove(Operando1);
+                pila_aux_operandos.remove(Operando2);
+                pila_aux_operandos.add(1, "TempINT");
+            }
+            
+            if(operador.equals("/"))
+            {
+                Operando1 = pila_aux_operandos.get(1);
+                Operando2 = pila_aux_operandos.get(2);
+                cadena_asm += "\t\tDIVIDE " + Operando1 + ", " + Operando2 + ", TempINT\n";
+                pila_aux_operandos.remove(Operando1);
+                pila_aux_operandos.remove(Operando2);
+                pila_aux_operandos.add(1, "TempINT");
+            }
+            
             if(operador.equals(":="))
             {
-                Operando2 = pila_aux_operandos.pop();
-                if(obtener_tipo_variable(pila_aux_operandos.peek()) == 101) // Entero
+                Operando1 = pila_aux_operandos.firstElement();
+                if(obtener_tipo_variable(Operando1) == 101) // Numero Entero
                 {
-                    cadena_asm += "\t\tI_ASIGNAR " + pila_aux_operandos.pop() + ", " + Operando2 + "\n";
+                   Operando2 = pila_aux_operandos.get(1);
+                   cadena_asm += "\t\tI_ASIGNAR " + Operando1 + ", " + Operando2 + "\n";
+                   pila_aux_operandos.remove(Operando1);
+                   pila_aux_operandos.remove(Operando2);
                 }
-                if (obtener_tipo_variable(pila_aux_operandos.peek()) == 120) //Cadena
+                if(obtener_tipo_variable(Operando1) == 120) // String
                 {
-                    //cadena_asm += "\t\tS_ASIGNAR " + pila_aux_operandos.pop() + ", " + Operando2 + "\n";
-                    /*cadena_asm += "\t\tS_ASIGNAR " + pila_aux_operandos.pop() + ", CadenaTemp" + Tempcont2 + "\n";
-                    Tempcont2++;
-                    if(Tempcont2 == Tempcont)
-                    {
-                        pila_aux_operandos.add(operador)
-                    }*/
-                    //encontrado = false;
-                    System.out.println(Tempcont2);
-                    if(Tempcont2 == (Tempcont-1))
-                    {
-                        String tmp = pila_aux_operandos.pop();
-                        System.out.println(tmp);
-                        System.out.println("xdd");
-                        cadena_asm += "\t\tS_ASIGNAR " + tmp + ", CadenaTemp" + Tempcont2 + "\n";
-                        //pila_aux_operandos.pop();
-                        pila_aux_operandos.add(tmp);
-                    }
-                    else
-                    {
-                        cadena_asm += "\t\tS_ASIGNAR " + pila_aux_operandos.pop() + ", CadenaTemp" + Tempcont2 + "\n";
-                        Tempcont2++;
-                    }
+                   cadena_asm += "\t\tS_ASIGNAR " + Operando1 + ", CadenaTemp" + Tempcont2 + "\n";
+                   Tempcont2++;
+                   pila_aux_operandos.remove(Operando1);
                 }
             }
             if(operador.equals("print"))
             {
-                if (obtener_tipo_variable(pila_aux_operandos.peek()) == 101)
-                {
-                    cadena_asm += "\t\tWRITENUM " + pila_aux_operandos.pop() + "\n\t\tWRITELN\n";
-                }
-                if (obtener_tipo_variable(pila_aux_operandos.peek()) == 120)
-                {
-                    cadena_asm += "\t\tWRITE " + pila_aux_operandos.pop() + "\n\t\tWRITELN\n";
-                }
+                cadena_asm += "\t\tWRITE " + pila_aux_operandos.firstElement() + "\n\t\tWRITELN\n";
+                pila_aux_operandos.remove(pila_aux_operandos.firstElement());
             }
         }
         cadena_asm += "\t\tret \nCOMPI ENDP \nEND BEGIN";
