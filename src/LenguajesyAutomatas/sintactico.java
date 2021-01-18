@@ -1,4 +1,6 @@
 package LenguajesyAutomatas;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Stack;
@@ -72,7 +74,7 @@ public class sintactico {
         this.lista_tokens = lista_tokens;
     }
     
-    public void comprobar_sintaxis(String archivo)
+    public void comprobar_sintaxis(String archivo) throws IOException
     { 
         if(lista_tokens.get(puntero).token == 200) // palabra 'procedure'
         {
@@ -111,7 +113,53 @@ public class sintactico {
                             if(lista_tokens.get(puntero).lexema == null ? identificador_programa == null : lista_tokens.get(puntero).lexema.equals(identificador_programa))
                             { 
                                 lista_polish_buffer.stream().forEach(item -> System.out.println(item));
-                                if(lista_errores_sintacticos.isEmpty() && lista_errores_semanticos.isEmpty()) this.sintaxis_completada = true;
+                                if(lista_errores_sintacticos.isEmpty() && lista_errores_semanticos.isEmpty()) 
+                                {
+                                    this.sintaxis_completada = true;
+                                    vaciar_pilas();
+                                    /*
+                                    for(int i = 0; i < lista_variables.size(); i++)
+                                    {
+                                        pila_auxiliar_operandos.add(lista_variables.get(i).tipo_var);
+                                    }
+                                    
+                                    for(int i = 0; i < lista_polish_buffer.size(); i++)
+                                    {
+                                        if(lista_polish_buffer.get(i).equals("+"))
+                                        {
+                                            pila_auxiliar_operadores.add(104);
+                                        }
+                                        if(lista_polish_buffer.get(i).equals("-"))
+                                        {
+                                            pila_auxiliar_operadores.add(105);
+                                        }
+                                        if(lista_polish_buffer.get(i).equals(":="))
+                                        {
+                                            pila_auxiliar_operadores.add(116);
+                                        }
+                                    }
+                                    System.out.println("");
+                                    for(int i = pila_auxiliar_operandos.size()-1; i >= 0 ; i--)
+                                    {
+                                        System.out.println(pila_auxiliar_operandos.get(i));
+                                    }
+                                    
+                                    for(int i = pila_auxiliar_operadores.size()-1; i >= 0 ; i--)
+                                    {
+                                        System.out.println(pila_auxiliar_operadores.get(i));
+                                    }
+                                    
+                                    
+                                   /* for(int i = pila_auxiliar_operandos.size()-1; 0 <= i; i++)
+                                    {
+                                        System.out.println(pila_auxiliar_operandos.get(i));
+                                    }
+                                    for(int i = pila_auxiliar_operadores.size()-1; 0 <= i; i++)
+                                    {
+                                        System.out.println(pila_auxiliar_operadores.get(i));
+                                    }*/
+                                    ensamblador();
+                                }
                             }
                             else
                             {
@@ -328,7 +376,6 @@ public class sintactico {
                 while(iterador_pila.hasPrevious())
                 {
                     lista_polish.add(iterador_pila.previous());
-                    //iterador_pila.remove();
                 }
                 for(int i = pila_auxiliar_operadores.size()-1; i >= 0; i--)
                 {
@@ -630,7 +677,7 @@ public class sintactico {
                                     }
                                 }
                                 lista_polish_buffer.add("BRF-"+ (E == 1 ? "E" : "E"+E));
-                                //lista_polish.stream().forEach(item -> System.out.println(item));
+
                                 comprobar_tipos();
                                 vaciar_pilas();
                                 vaciar_lista_polish();
@@ -724,6 +771,7 @@ public class sintactico {
                 break;    
             case 120: // String
                 agregar_operando(lista_tokens.get(puntero).token);
+                lista_polish_buffer.add(lista_tokens.get(puntero).lexema);
                 puntero++;
                 operadores_aritmeticos();
                 break;
@@ -1167,4 +1215,187 @@ public class sintactico {
     {
         lista_polish.clear();
     }
+    
+    public void ensamblador() throws IOException
+    {
+        Stack <String> pila_aux_operandos = new Stack <>();
+        Stack <String> pila_aux_operadores = new Stack <>();
+        
+        String CadenaVar="";
+        String CadenaEnsamblador;
+        String Operando2;
+        String cadena_asm="";
+        int Tempcont = 0;
+        int Tempcont2 = 0;
+        
+        CadenaVar += "INCLUDE Macros.MAC\n" +
+                           "DOSSEG\n" +
+                           ".MODEL SMALL \n" +
+                           ".STACK 100h\n" +
+                           ".DATA \n";
+        
+        for (nodo_variable lista_variable : lista_variables) 
+        {
+            switch ( lista_variable.tipo_var )
+            {
+                case 101: // Entero
+                {
+                    CadenaVar += "\t\t" + lista_variable.nombre_var + " dw ? \n";
+                    break;
+                }
+                case 102: // Numero Decimal
+                {
+                    CadenaVar += "\t\t" + lista_variable.nombre_var + " db 0 \n";
+                    break;
+                }
+                case 120: // Cadena
+                {
+                    CadenaVar += "\t\t" + lista_variable.nombre_var + " db 254 dup ('$') \n";
+                    break;
+                }
+            }
+        }
+        
+        cadena_asm += "\t\tTempINT dw ?\n" +
+                           "\t\tTempCOMPARACION dw ?\n";
+
+            cadena_asm += ".CODE\n" +
+                           ".386\n" +
+                           "BEGIN:\n" +
+                           "\t\tMOV AX, @DATA\n" +
+                           "\t\tMOV DS, AX\n" +
+                           "CALL COMPI\n" +
+                           "\t\tMOV AX, 4C00H\n" +
+                           "\t\tINT 21H\n\n" +
+                           "COMPI PROC\n";
+            
+        for(String polish: lista_polish_buffer)
+        {
+        //lista_polish_buffer.forEach((polish) -> {
+            if(polish.equals("+") || polish.equals("-") || polish.equals("*") || polish.equals(":=") || polish.equals("print"))
+            {
+                pila_aux_operadores.add(polish);
+            }
+            else
+            {
+                pila_aux_operandos.add(polish);
+                boolean variable_declarada = lista_variables.stream().anyMatch(var -> var.nombre_var.equals(polish));
+                if(!variable_declarada)  
+                {
+                    if(isInteger(polish))
+                    {
+                        lista_variables.add(new nodo_variable(polish, 101));
+                    }
+                    else if(isDouble(polish))
+                    {
+                        lista_variables.add(new nodo_variable(polish, 102));
+                    }
+                    else
+                    {
+                        CadenaVar += "\t\tCadenaTemp" + Tempcont + " db " + polish.substring(0, polish.length() - 1) + "$\"\n";
+                        lista_variables.add(new nodo_variable(polish, 120));
+                        Tempcont++;
+                    }
+                }
+            }
+        }
+        //}); 
+
+        
+        System.out.println("");
+        for(int i = pila_aux_operandos.size()-1; i >= 0 ; i--)
+        {
+            System.out.println(pila_aux_operandos.get(i));
+        }
+        System.out.println("");
+        for(int i = pila_aux_operadores.size()-1; i >= 0 ; i--)
+        {
+            System.out.println(pila_aux_operadores.get(i));
+        }
+        System.out.println("");
+        
+        for (String operador : pila_aux_operadores) 
+        {
+            if(operador.equals("+"))
+            {
+                Operando2 = pila_aux_operandos.pop();
+                cadena_asm += "\t\tSUMAR " + pila_aux_operandos.pop() + ", " + Operando2 + ", TempINT\n";
+                pila_aux_operandos.push("TempINT");
+                lista_variables.add(new nodo_variable("TempINT", 101));
+            }
+            if(operador.equals(":="))
+            {
+                Operando2 = pila_aux_operandos.pop();
+                if(obtener_tipo_variable(pila_aux_operandos.peek()) == 101) // Entero
+                {
+                    cadena_asm += "\t\tI_ASIGNAR " + pila_aux_operandos.pop() + ", " + Operando2 + "\n";
+                }
+                if (obtener_tipo_variable(pila_aux_operandos.peek()) == 120) //Cadena
+                {
+                    //cadena_asm += "\t\tS_ASIGNAR " + pila_aux_operandos.pop() + ", " + Operando2 + "\n";
+                    /*cadena_asm += "\t\tS_ASIGNAR " + pila_aux_operandos.pop() + ", CadenaTemp" + Tempcont2 + "\n";
+                    Tempcont2++;
+                    if(Tempcont2 == Tempcont)
+                    {
+                        pila_aux_operandos.add(operador)
+                    }*/
+                    //encontrado = false;
+                    System.out.println(Tempcont2);
+                    if(Tempcont2 == (Tempcont-1))
+                    {
+                        String tmp = pila_aux_operandos.pop();
+                        System.out.println(tmp);
+                        System.out.println("xdd");
+                        cadena_asm += "\t\tS_ASIGNAR " + tmp + ", CadenaTemp" + Tempcont2 + "\n";
+                        //pila_aux_operandos.pop();
+                        pila_aux_operandos.add(tmp);
+                    }
+                    else
+                    {
+                        cadena_asm += "\t\tS_ASIGNAR " + pila_aux_operandos.pop() + ", CadenaTemp" + Tempcont2 + "\n";
+                        Tempcont2++;
+                    }
+                }
+            }
+            if(operador.equals("print"))
+            {
+                if (obtener_tipo_variable(pila_aux_operandos.peek()) == 101)
+                {
+                    cadena_asm += "\t\tWRITENUM " + pila_aux_operandos.pop() + "\n\t\tWRITELN\n";
+                }
+                if (obtener_tipo_variable(pila_aux_operandos.peek()) == 120)
+                {
+                    cadena_asm += "\t\tWRITE " + pila_aux_operandos.pop() + "\n\t\tWRITELN\n";
+                }
+            }
+        }
+        cadena_asm += "\t\tret \nCOMPI ENDP \nEND BEGIN";
+        CadenaEnsamblador = CadenaVar + cadena_asm;
+        
+        try (FileWriter myWriter = new FileWriter("C:/tasm/spark.asm")) {
+            myWriter.write(CadenaEnsamblador);
+        }
+    }
+    
+    public static boolean isInteger(String s) {
+        try { 
+            Integer.parseInt(s); 
+        } catch(NumberFormatException e) { 
+            return false; 
+        }
+        // only got here if we didn't return false
+        return true;
+    }
+    public static boolean isDouble(String s) {
+        try { 
+            Double.parseDouble(s); 
+        } catch(NumberFormatException e) { 
+            return false; 
+        }
+        // only got here if we didn't return false
+        return true;
+    }
 }
+
+
+
